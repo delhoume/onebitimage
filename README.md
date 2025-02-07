@@ -52,7 +52,7 @@ Of particular interest might be:
       -> generated.png -L> use read BMP _> write PNG
 
   > gen1bitv image.png
-      -> same  thing, starting from on a PNG source
+      -> same  thing, starting from a PNG source
 ```  
   
   Development is done on a mac m1 but code should be portable.
