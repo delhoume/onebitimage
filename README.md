@@ -54,4 +54,6 @@ usage:
   > gen1bitv image.png
       -> same  thing, starting from on a PNG source
   
-  > Developement is done on a mac m1 but code should be portable.
+  
+  Development is done on a mac m1 but code should be portable.
+  onebit is freeware but miniz has its own license
