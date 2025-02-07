@@ -16,10 +16,10 @@ unsigned char* onebit_read_file_png1(const char *filename, int* w, int* h, unsig
 int onebit_bm_stride(int width) 
 ```
 
-internal formtfor data is Windows BMP 1 bit per pizel:
-height rows of stride bytyes
-stride = width / 8 padded to 4 bytes ((width + 31) & ~31) >> 3)
-imag is bottom-top
+internal data format is Windows BMP 1 bit per pixel:
+= height rows of *stride* bytes
+= stride = width / 8 padded to 4 bytes ((width + 31) & ~31) >> 3)
++ image is bottom-top
 
 Of particular interest might be:
 - handling of BMP/PNG specifics
@@ -46,9 +46,12 @@ Of particular interest might be:
 
 - A command-line utility is provided to transcode images from/to BMP/PNG
 usage:
+  > make
   > gen1bit imag1e.bmp
       -> generated.bmp -> uses read BMP / write BMP 
       -> generated.png -L> use read BMP _> write PNG
 
   > gen1bitv image.png
       -> same  thing, starting from on a PNG source
+  
+  > Developement is done on a mac m1 but code should be portable.
