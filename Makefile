@@ -12,8 +12,5 @@ gen1bit.o: gen1bit.cpp
 miniz.o: miniz-3.0.2/miniz.c
 	gcc -I. -Iminiz-3.0.2 -c miniz-3.0.2/miniz.c
 
-puff.o: puff.c
-	gcc -I. -c puff.c
-	
 clean:
 	rm -rf *.o gen1bit

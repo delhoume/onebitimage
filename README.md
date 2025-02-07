@@ -34,7 +34,7 @@ Of particular interest might be:
 - handling of PNG specifics
    - simple generation of only 3 chunks : IHDR IDAT IEND
   - deflate compression
-     - depends on external minimal implementation
+     - depends on external deflate implementation
          - miniz (default)
          - puff, zlb (optional)
   - correct non-trivial decompressed data because of filter
@@ -56,4 +56,4 @@ Of particular interest might be:
 ```  
   
   Development is done on a mac m1 but code should be portable.
-  onebit is freeware but miniz has its own license
+  onebit is freeware but mdeflate iniz has its own license
