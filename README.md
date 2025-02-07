@@ -44,7 +44,7 @@ Of particular interest might be:
 
 
 - A command-line utility is provided to transcode images from/to BMP/PNG
-usage:
+``` 
   > make
   > gen1bit imag1e.bmp
       -> generated.bmp -> uses read BMP / write BMP 
@@ -52,7 +52,7 @@ usage:
 
   > gen1bitv image.png
       -> same  thing, starting from on a PNG source
-  
+```  
   
   Development is done on a mac m1 but code should be portable.
   onebit is freeware but miniz has its own license
