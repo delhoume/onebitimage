@@ -2,12 +2,24 @@ This repo hosts a simple and not definitive single header C library for handling
 1 bit images in the PNG  format and in the Windows BMP format (as BitmapinfoHeaderv1)_
 
 Usage:
+```
 #define ONEBIT_IMAGE_IMPLEMENTATION
 #include "onebit.h
+```
 
 APIs:
+```
+int onebit_write_file_bmp1(const char *filename, int w, int h, unsigned char *data)\
+int onebit_write_file_png1(const char *filename, int w, int h, unsigned char *data)
+unsigned char* onebit_read_file_bmp1(const char *filename, int* w, int* h, unsigned char *data)
+unsigned char* onebit_read_file_png1(const char *filename, int* w, int* h, unsigned char *data)
+int onebit_bm_stride(int width) 
+```
 
-
+internal formtfor data is Windows BMP 1 bit per pizel:
+height rows of stride bytyes
+stride = width / 8 padded to 4 bytes ((width + 31) & ~31) >> 3)
+imag is bottom-top
 
 Of particular interest might be:
 - handling of BMP/PNG specifics
@@ -15,8 +27,8 @@ Of particular interest might be:
   - BMP is little-endian
   
 - handling of BMP specifics
-   - negative height
-   - stride when width not aligned on 4 bytes
+   - negative height (top-bottom) instead of default bottom-top
+   - stride when width not aligned on 4 byt
  
 - handling of PNG specifics
    - simple generation of only 3 chunks : IHDR IDAT IEND
