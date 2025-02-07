@@ -9,16 +9,17 @@ Usage:
 
 APIs:
 ```
-int onebit_write_file_bmp1(const char *filename, int w, int h, unsigned char *data)\
+int onebit_write_file_bmp1(const char *filename, int w, int h, unsigned char *data)
 int onebit_write_file_png1(const char *filename, int w, int h, unsigned char *data)
 unsigned char* onebit_read_file_bmp1(const char *filename, int* w, int* h, unsigned char *data)
 unsigned char* onebit_read_file_png1(const char *filename, int* w, int* h, unsigned char *data)
 int onebit_bmp_stride(int width) 
 ```
 
-internal data format is Windows BMP 1 bit per pixel:
-= height rows of *stride* bytes
-= stride = width / 8 padded to 4 bytes ((width + 31) & ~31) >> 3)
+internal data format is Windows BMP 1 bit per pixel:= height rows of *stride* bytes
+
++ stride = width / 8 padded to 4 bytes ((width + 31) & ~31) >> 3)
+
 + image is bottom-top
 
 Of particular interest might be:
