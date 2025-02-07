@@ -14,7 +14,7 @@ int onebit_write_file_png1(const char *filename, int w, int h, unsigned char *da
 unsigned char* onebit_read_file_bmp1(const char *filename, int* w, int* h, unsigned char *data)
 unsigned char* onebit_read_file_png1(const char *filename, int* w, int* h, unsigned char *data)
 int onebit_bmp_stride(int width)
-little and big endian file reading
+little and big endian file reading / writing (from/to memory will arrive soon)
 ```
 
 internal data format is Windows BMP 1 bit per pixel:= height rows of *stride* bytes
@@ -58,4 +58,3 @@ Of particular interest might be:
   
   Development is done on a mac m1 but code should be portable.
   onebit is freeware but miniz has its own license
-  reading/writing from memory will come soon
