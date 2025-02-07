@@ -13,7 +13,7 @@ int onebit_write_file_bmp1(const char *filename, int w, int h, unsigned char *da
 int onebit_write_file_png1(const char *filename, int w, int h, unsigned char *data)
 unsigned char* onebit_read_file_bmp1(const char *filename, int* w, int* h, unsigned char *data)
 unsigned char* onebit_read_file_png1(const char *filename, int* w, int* h, unsigned char *data)
-int onebit_bm_stride(int width) 
+int onebit_bmp_stride(int width) 
 ```
 
 internal data format is Windows BMP 1 bit per pixel:
@@ -28,16 +28,15 @@ Of particular interest might be:
   
 - handling of BMP specifics
    - negative height (top-bottom) instead of default bottom-top
-   - stride when width not aligned on 4 byt
+   - stride when width not aligned on 4 bytes
  
 - handling of PNG specifics
    - simple generation of only 3 chunks : IHDR IDAT IEND
   - deflate compression
-     - depends on external minimal implementations
+     - depends on external minimal implementation
          - miniz (default)
-         - puff (optional)
-     - no dependency to zlib
-  - non-trivial uncompressed data because of filter
+         - puff, zlb (optional)
+  - correct non-trivial decompressed data because of filter
   - crc checksum
  
 - Due to lossless compression 1 bit PNGs are usually much lighter than 1 bit BMP.
