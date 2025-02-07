@@ -2,11 +2,9 @@
 #define INCLUDE_ONEBIT_IMAGE_H
 
 #include <cstdio>
-#include <functional>
+
 extern "C" {
-#include <crc.h>
 #include <miniz.h>
-#include <puff.h>
 }
 
 #include <stdlib.h>
@@ -28,12 +26,10 @@ extern "C" {
 #endif
 #endif
 
-ONEBITWDEF unsigned char *onebit_read_file_bmp1(const char *filename, int *w,
-                                                int *h, unsigned char *data);
-
-typedef void onebit_write_func(void *context, void *data, int size);
-uint8_t onebit_write_file_bmp1(const char *filename, int w, int h,
-                               unsigned char *data);
+unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h);
+unsigned char* onebit_read_file_png1(const char *filename, int *w, int *h);
+int onebit_write_file_bmp1(const char *filename, int w, int h, const unsigned char* data);
+int onebit_write_file_png1(const char *filename, int w, int h, const unsigned char *data);
 
 #endif // INCLUDE_ONEBIT_IMAGE_H
 
@@ -154,8 +150,8 @@ uint32_t readBig32(FILE *fp) {
          ((uint32_t)fgetc(fp) << 8) | fgetc(fp);
 }
 
-void writeN(FILE *fp, unsigned char *data, int n) { fwrite(data, 1, n, fp); }
-void writeNMem(unsigned char *dataout, unsigned char *datain, int n) {
+void writeN(FILE *fp, const unsigned char *data, int n) { fwrite(data, 1, n, fp); }
+void writeNMem(unsigned char *dataout, const unsigned char *datain, int n) {
   memcpy(dataout, datain, n);
 }
 
@@ -284,7 +280,7 @@ inline bool match_known(unsigned char *bytes, unsigned char *known, int len) {
 }
 
 int onebit_write_file_png1(const char *filename, int w, int h,
-                           unsigned char *data) {
+                           const unsigned char *data) {
   unsigned char tmp_big32[4] = {0};
   FILE *fp = fopen(filename, "wb");
 
@@ -311,7 +307,7 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   write1Mem(ptr, 0);
   ptr++; // interlace
 
-  unsigned int ihdr_crc = crc(ihdr, 17);
+  unsigned int ihdr_crc = mz_crc32(MZ_CRC32_INIT, ihdr, 17);
   writeN(fp, ihdr, 17);
   writeBig32(fp, ihdr_crc);
 
@@ -344,8 +340,8 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   writeBig32(fp, cdata_len);
   writeN(fp, chunk_IDAT, 4);
   writeN(fp, compressed_data, cdata_len);
-  unsigned int idat_crc = crc(chunk_IDAT, 4);
-  idat_crc = update_crc(idat_crc, compressed_data, cdata_len);
+  unsigned int idat_crc = mz_crc32(MZ_CRC32_INIT, chunk_IDAT, 4);
+  idat_crc = mz_crc32(idat_crc,  compressed_data, cdata_len);
 
   writeBig32(fp, idat_crc);
 
@@ -362,7 +358,7 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   return 1;
 }
 
-unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
+unsigned char* onebit_read_file_png1(const char *filename, int *w, int *h) {
   FILE *fp = fopen(filename, "rb");
   unsigned char signature[8] = {0};
   unsigned char *data = nullptr;
@@ -399,6 +395,7 @@ unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
     } else if (match_known(chunk, chunk_IDAT, 4)) {
       compressed_data_size += chunk_length;
       if (compressed_data == nullptr) {
+        // TODO check if miniz allows to decode as we read instead of reading the whole compressed contents
         compressed_data = (unsigned char *)malloc(compressed_data_size);
       } else {
         compressed_data =
@@ -415,17 +412,11 @@ unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
   fclose(fp);
   unsigned long srclen = compressed_data_size;
   unsigned long dstlen = (stride + 1) * height;
-  // these two allocatins can bw reduced to the largest one,
-  // then retruned data would have height "wasted" bytes a the end
-  // scond pass would move data to correct ocation "in place"
-#if !defined(USE_PUFF)
+  // these two allocations can be reduced to the largest one,
+  // the returned data would have height "wasted" bytes ate the end
+  // second pass would move data to correct location "in place"
   unsigned char *tmp_data = (unsigned char *)malloc(srclen);
   int status = uncompress2(tmp_data, &dstlen, compressed_data, &srclen);
-#else
-  int status = puff((unsigned char *)0, &dstlen, compressed_data, &srclen);
-  unsigned char *tmp_data = (unsigned char *)malloc(srclen);
-  status = puff(tmp_data, &dstlen, compressed_data, &srclen);
-#endif
   free(compressed_data);
   data = (unsigned char *)malloc(stride * height);
   // invert
@@ -440,8 +431,8 @@ unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
   return data;
 }
 
-uint8_t onebit_write_file_bmp1(const char *filename, int w, int h,
-                               unsigned char *data) {
+int onebit_write_file_bmp1(const char *filename, int w, int h,
+                               const unsigned char* data) {
   FILE *fp = fopen(filename, "wb");
   int ncolors = 2;
   int stride = onebit_bmp_stride(w);
