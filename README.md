@@ -4,7 +4,7 @@ This repo hosts a simple and not definitive single header C library for handling
 Usage:
 ```
 #define ONEBIT_IMAGE_IMPLEMENTATION
-#include "onebit.h
+#include "onebit.h" 
 ```
 
 APIs:
