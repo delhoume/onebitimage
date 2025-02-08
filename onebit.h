@@ -331,7 +331,7 @@ int onebit_write_file_png1(const char *filename, int w, int h,
       (unsigned char *)malloc(compressed_data_len); // same as uncompress
 
   int status =
-      compress2(compressed_data, &compressed_data_len, newdata, data_len, 0);
+      compress2(compressed_data, &compressed_data_len, newdata, data_len, 7);
   int cdata_len = compressed_data_len;
 
   uint32_t scdata_len = cdata_len;
