@@ -4,7 +4,7 @@ This repo hosts a simple and not definitive single header C library for handling
 Usage:
 ```
 #define ONEBIT_IMAGE_IMPLEMENTATION
-#include "onebit.h
+#include "onebit.h" 
 ```
 
 APIs:
@@ -48,11 +48,11 @@ Of particular interest might be:
 - A command-line utility is provided to transcode images from/to BMP/PNG
 ``` 
   > make
-  > gen1bit imag1e.bmp
+  > gen1bit wavshare.bmp
       -> generated.bmp -> uses read BMP / write BMP 
       -> generated.png -> uses read BMP / write PNG
 
-  > gen1bitv image.png
+  > gen1bit indigo.png
       -> same  thing, starting from a PNG source
 ```  
   
