@@ -1,7 +1,11 @@
 #ifndef INCLUDE_ONEBIT_IMAGE_H
 #define INCLUDE_ONEBIT_IMAGE_H
 
+#include <__config>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 
 extern "C" {
 #include <miniz.h>
@@ -26,10 +30,13 @@ extern "C" {
 #endif
 #endif
 
+unsigned char *onebit_read_mem_bmp1(unsigned char* data,  int data_length,int *w, int *h. int* stride);
 unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h);
-unsigned char* onebit_read_file_png1(const char *filename, int *w, int *h);
-int onebit_write_file_bmp1(const char *filename, int w, int h, const unsigned char* data);
-int onebit_write_file_png1(const char *filename, int w, int h, const unsigned char *data);
+unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h);
+int onebit_write_file_bmp1(const char *filename, int w, int h,
+                           const unsigned char *data);
+int onebit_write_file_png1(const char *filename, int w, int h,
+                           const unsigned char *data);
 
 #endif // INCLUDE_ONEBIT_IMAGE_H
 
@@ -88,6 +95,9 @@ void writeLittle16(FILE *fp, uint16_t value) {
 
 uint16_t readLittle16(FILE *fp) { return fgetc(fp) + fgetc(fp) * 256; }
 
+uint16_t readMemLittle16(unsigned char* ptr) { return ((uint16_t)ptr[0]) | (uint16_t)ptr[1] *  256; }
+
+
 void write0_16(FILE *fp) {
   fputc(0, fp);
   fputc(0, fp);
@@ -116,6 +126,12 @@ uint32_t readLittle32(FILE *fp) {
   return fgetc(fp) | ((uint32_t)fgetc(fp) << 8) | ((uint32_t)fgetc(fp) << 16) |
          ((uint32_t)fgetc(fp) << 24);
 }
+
+uint32_t readMemLittle32(unsigned char* ptr) {
+  return ((uint32_t)ptr[0]) + (((uint32_t)ptr[1]) * 256) | (((uint32_t)ptr[2]) << 16) |
+         ((uint32_t)ptr[3] << 24);
+}
+
 
 void writeBig16(FILE *fp, uint16_t value) {
   fputc(value >> 8, fp);
@@ -150,7 +166,9 @@ uint32_t readBig32(FILE *fp) {
          ((uint32_t)fgetc(fp) << 8) | fgetc(fp);
 }
 
-void writeN(FILE *fp, const unsigned char *data, int n) { fwrite(data, 1, n, fp); }
+void writeN(FILE *fp, const unsigned char *data, int n) {
+  fwrite(data, 1, n, fp);
+}
 void writeNMem(unsigned char *dataout, const unsigned char *datain, int n) {
   memcpy(dataout, datain, n);
 }
@@ -217,9 +235,50 @@ struct BMPHeader {
 #endif
 
 typedef struct BGRA {
-  Byte b; Byte g; Byte r; Byte a;
+  Byte b;
+  Byte g;
+  Byte r;
+  Byte a;
 } BGRA;
 
+// TODO: check data size
+unsigned char *onebit_read_memory_bmp1(unsigned char *data,  int data_length, *w, int *h,
+                                       int *stride) {
+  if (data_length < 62) regurn nullptr;
+  unsigned char *ptr = data;
+  if (ptr[0] != 'B' || ptr[1] != 'M')
+    return nullptr;
+  ptr += 2;
+  ptr += 4;
+  ptr += 2;
+  ptr += 2;
+  uint32_t offset = readMemLittle32(ptr);
+  ptr += 4;
+  uint32_t bih_size = readMemLittle32(ptr);
+  ptr += 4;
+
+  int32_t width = readMemLittle32(ptr);
+  ptr += 4;
+  int32_t height = readMemLittle32(ptr);
+  ptr += 4;
+  uint16_t color_planes = readMemLittle16(ptr);
+  ptr += 2;
+  uint16_t bits_per_pixel = readMemLittle16(ptr);
+  ptr += 2;
+  uint32_t compression = readMemLittle32(ptr);
+  ptr += 4;
+  uint32_t raw_image_size = readMemLittle32(ptr);
+  ptr += 4;
+
+  ptr = data + offset;
+  *w = width;
+  *h = abs(height);
+  *stride = onebit_bmp_stride(width);
+
+  unsigned char *dataout = (unsigned char *)malloc(abs(height) * (*stride));
+  memcpy(dataout, ptr, *stride * abs(height));
+  return dataout;
+}
 
 unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h) {
   FILE *fp = fopen(filename, "rb");
@@ -281,7 +340,6 @@ inline bool match_known(unsigned char *bytes, unsigned char *known, int len) {
 
 int onebit_write_file_png1(const char *filename, int w, int h,
                            const unsigned char *data) {
-  unsigned char tmp_big32[4] = {0};
   FILE *fp = fopen(filename, "wb");
 
   writeN(fp, png_signature, 8);
@@ -341,7 +399,7 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   writeN(fp, chunk_IDAT, 4);
   writeN(fp, compressed_data, cdata_len);
   unsigned int idat_crc = mz_crc32(MZ_CRC32_INIT, chunk_IDAT, 4);
-  idat_crc = mz_crc32(idat_crc,  compressed_data, cdata_len);
+  idat_crc = mz_crc32(idat_crc, compressed_data, cdata_len);
 
   writeBig32(fp, idat_crc);
 
@@ -358,7 +416,7 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   return 1;
 }
 
-unsigned char* onebit_read_file_png1(const char *filename, int *w, int *h) {
+unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
   FILE *fp = fopen(filename, "rb");
   unsigned char signature[8] = {0};
   unsigned char *data = nullptr;
@@ -395,7 +453,8 @@ unsigned char* onebit_read_file_png1(const char *filename, int *w, int *h) {
     } else if (match_known(chunk, chunk_IDAT, 4)) {
       compressed_data_size += chunk_length;
       if (compressed_data == nullptr) {
-        // TODO check if miniz allows to decode as we read instead of reading the whole compressed contents
+        // TODO check if miniz allows to decode as we read instead of reading
+        // the whole compressed contents
         compressed_data = (unsigned char *)malloc(compressed_data_size);
       } else {
         compressed_data =
@@ -432,7 +491,7 @@ unsigned char* onebit_read_file_png1(const char *filename, int *w, int *h) {
 }
 
 int onebit_write_file_bmp1(const char *filename, int w, int h,
-                               const unsigned char* data) {
+                           const unsigned char *data) {
   FILE *fp = fopen(filename, "wb");
   int ncolors = 2;
   int stride = onebit_bmp_stride(w);
