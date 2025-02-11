@@ -1,14 +1,16 @@
 #ifndef INCLUDE_ONEBIT_IMAGE_H
 #define INCLUDE_ONEBIT_IMAGE_H
 
+#include "miniz-3.0.2/miniz.h"
 #include <__config>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 extern "C" {
-#include <miniz.h>
+#include "miniz.h"
 }
 
 #include <stdlib.h>
@@ -30,13 +32,41 @@ extern "C" {
 #endif
 #endif
 
-unsigned char *onebit_read_mem_bmp1(unsigned char* data,  int data_length,int *w, int *h. int* stride);
+const int bmp_signature_length = 2;
+unsigned char bmp_signature[bmp_signature_length] = {'B', 'M'};
+
+const int png_signature_length = 8;
+unsigned char png_signature[png_signature_length] = {137, 80, 78, 71,
+                                                     13,  10, 26, 10};
+
+unsigned char *onebit_read_mem_bmp1(unsigned char *data, int data_length,
+                                    int *w, int *h, int *stride);
+unsigned char *onebit_read_mem_png1(unsigned char *data, int data_length,
+                                    int *w, int *h, int *stride);
+unsigned char *onebit_write_mem_bmp1(int w, int h, const unsigned char *data,
+                                     int *size);
+unsigned char *onebit_write_mem_png1(int w, int h, const unsigned char *data,
+                                     int *size);
+
 unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h);
 unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h);
 int onebit_write_file_bmp1(const char *filename, int w, int h,
                            const unsigned char *data);
 int onebit_write_file_png1(const char *filename, int w, int h,
                            const unsigned char *data);
+
+// checks signature
+unsigned char *onebit_read_file(const char *filename, int *w, int *h);
+
+bool match_png(unsigned char *data, int data_size) {
+  return (data_size >= png_signature_length) &&
+         !memcmp(data, png_signature, png_signature_length);
+}
+
+bool match_bmp(unsigned char *data, int data_size) {
+  return (data_size >= bmp_signature_length) &&
+         !memcmp(data, bmp_signature, bmp_signature_length);
+}
 
 #endif // INCLUDE_ONEBIT_IMAGE_H
 
@@ -86,6 +116,13 @@ int onebit_write_file_png1(const char *filename, int w, int h,
 #define STBIW_MEMMOVE(a, b, sz) memmove(a, b, sz)
 #endif
 
+typedef struct {
+  int w;
+  int h;
+  int stride;
+  unsigned char *data;
+} one_bit_image;
+
 // if system is little endian  ? ...
 
 void writeLittle16(FILE *fp, uint16_t value) {
@@ -95,8 +132,9 @@ void writeLittle16(FILE *fp, uint16_t value) {
 
 uint16_t readLittle16(FILE *fp) { return fgetc(fp) + fgetc(fp) * 256; }
 
-uint16_t readMemLittle16(unsigned char* ptr) { return ((uint16_t)ptr[0]) | (uint16_t)ptr[1] *  256; }
-
+uint16_t readMemLittle16(unsigned char *ptr) {
+  return ((uint16_t)ptr[0]) | (uint16_t)ptr[1] * 256;
+}
 
 void write0_16(FILE *fp) {
   fputc(0, fp);
@@ -127,11 +165,19 @@ uint32_t readLittle32(FILE *fp) {
          ((uint32_t)fgetc(fp) << 24);
 }
 
-uint32_t readMemLittle32(unsigned char* ptr) {
-  return ((uint32_t)ptr[0]) + (((uint32_t)ptr[1]) * 256) | (((uint32_t)ptr[2]) << 16) |
-         ((uint32_t)ptr[3] << 24);
+uint32_t readMemLittle32(unsigned char *ptr) {
+  return ((uint32_t)ptr[0]) | (((uint32_t)ptr[1]) * 256) |
+         (((uint32_t)ptr[2]) << 16) | ((uint32_t)ptr[3] << 24);
 }
 
+uint32_t readMemBig32(unsigned char *ptr) {
+  return ((uint32_t)ptr[0]) << 24 | (((uint32_t)ptr[1]) << 16) |
+         (((uint32_t)ptr[2]) << 8) | ((uint32_t)ptr[3]);
+}
+
+uint32_t readMemBig16(unsigned char *ptr) {
+  return ((uint32_t)ptr[0]) << 8 | ((uint32_t)ptr[1]);
+}
 
 void writeBig16(FILE *fp, uint16_t value) {
   fputc(value >> 8, fp);
@@ -152,6 +198,16 @@ void writeBig32(FILE *fp, uint32_t value) {
   c = value & 0xff;
   fputc(c, fp);
   fflush(fp);
+}
+
+void little32(unsigned char *ptr, int32_t value) {
+  uint32_t *addr = (uint32_t *)ptr;
+  *addr = value;
+}
+
+void little16(unsigned char *ptr, uint16_t value) {
+  uint16_t *addr = (uint16_t *)ptr;
+  *addr = value;
 }
 
 void writeBig32Mem(unsigned char *data, uint32_t value) {
@@ -197,7 +253,9 @@ inline void skip4(FILE *fp) {
   fgetc(fp);
 }
 
-void readN(FILE *fp, unsigned char *data, int n) { fread(data, 1, n, fp); }
+int readN(FILE *fp, unsigned char *data, int n) {
+  return fread(data, 1, n, fp);
+}
 
 unsigned char read1(FILE *fp) { return fgetc(fp); }
 
@@ -242,11 +300,12 @@ typedef struct BGRA {
 } BGRA;
 
 // TODO: check data size
-unsigned char *onebit_read_memory_bmp1(unsigned char *data,  int data_length, *w, int *h,
-                                       int *stride) {
-  if (data_length < 62) regurn nullptr;
+unsigned char *onebit_read_mem_bmp1(unsigned char *data, int data_length,
+                                    int *w, int *h, int *stride) {
+  if (data_length < 62)
+    return data;
   unsigned char *ptr = data;
-  if (ptr[0] != 'B' || ptr[1] != 'M')
+  if (match_bmp(data, 2))
     return nullptr;
   ptr += 2;
   ptr += 4;
@@ -281,13 +340,23 @@ unsigned char *onebit_read_memory_bmp1(unsigned char *data,  int data_length, *w
 }
 
 unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h) {
+  *w = 0;
+  *h = 0;
   FILE *fp = fopen(filename, "rb");
+  if (fp == nullptr) {
+    *w = 0;
+    *h = 0;
+    return nullptr;
+  }
   unsigned char *data = nullptr;
-  unsigned char b0 = read1(fp);
-  unsigned char b1 = read1(fp);
-  if ((b0 != 'B') || (b1 != 'M'))
+  unsigned char bb[2];
+  bb[0] = read1(fp);
+  bb[1] = read1(fp);
+  if (!match_bmp(bb, 2)) {
+    *w = 0;
+    *h = 0;
     return data;
-  skip4(fp); // biF
+  }
   skip2(fp);
   skip2(fp); // reserved
   uint32_t offset = readLittle32(fp);
@@ -321,28 +390,102 @@ unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h) {
   return data;
 }
 
-const int png_signature_length = 8;
-unsigned char png_signature[png_signature_length] = {137, 80, 78, 71,
-                                                     13,  10, 26, 10};
-const int full_chunk_IHDR_len = 25;
+const int full_chunk_IHDR_length = 25;
 
 unsigned char chunk_IHDR[4] = {'I', 'H', 'D', 'R'};
 unsigned char chunk_IDAT[4] = {'I', 'D', 'A', 'T'};
 unsigned char chunk_IEND[4] = {'I', 'E', 'N', 'D'};
 
-const int full_chunk_IEND_len = 12;
-unsigned char full_chunk_IEND[full_chunk_IEND_len] = {
+const int full_chunk_IEND_length = 12;
+unsigned char full_chunk_IEND[full_chunk_IEND_length] = {
     0x00, 0x00, 0x00, 0x0, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82};
 
 inline bool match_known(unsigned char *bytes, unsigned char *known, int len) {
   return !memcmp(bytes, known, len);
 }
 
+void writeToFile(const char *filename, unsigned char *data, int size) {
+  FILE *fp = fopen(filename, "wb");
+  if (fp != nullptr)
+    fwrite(data, 1, size, fp);
+  fclose(fp);
+}
+
+unsigned char *onebit_write_mem_png1(int w, int h, const unsigned char *data,
+                                     int *size) {
+  int ihdr_contents_size = 13;
+  int chunk_overhead = 12; // count 4 chunktypr 4 crc 4
+  int ihdr_size = ihdr_contents_size +
+                  chunk_overhead; // size + chunk name * chunkdata + crc = 25
+  unsigned char *signature_ihdr =
+      (unsigned char *)malloc(png_signature_length + ihdr_size);
+
+  // first compress to get final size
+  int stride = onebit_bmp_stride(w);
+
+  // FILTER adds  byte at the begining !!!
+  mz_ulong data_len = (stride + 1) * h;
+  unsigned char *newdata = (unsigned char *)malloc(data_len);
+  // invert a the same time
+
+  for (int y = 0; y < abs(h); y++) {
+    newdata[y * (stride + 1)] = 0;
+    memcpy(newdata + y * (stride + 1) + 1,
+           h <= 0 ? data + y * stride : data + (abs(h) - y - 1) * stride,
+           stride);
+  }
+
+  mz_ulong compressed_data_length = mz_compressBound(data_len);
+  unsigned char *compressed_data =
+      (unsigned char *)malloc(compressed_data_length); // same as uncompress
+
+  int status =
+      compress2(compressed_data, &compressed_data_length, newdata, data_len, 7);
+  int cdata_len = compressed_data_length;
+  free(newdata);
+  int idat_size = chunk_overhead + cdata_len;
+
+  // now build the final contents
+  // signature
+  int final_size =
+      png_signature_length + ihdr_size + idat_size + full_chunk_IEND_length;
+  unsigned char *final_data = (unsigned char *)malloc(final_size);
+  memcpy(final_data, png_signature, png_signature_length);
+
+  // ihdr
+  unsigned char *ihdr_data = final_data + png_signature_length;
+  memset(ihdr_data, 0, ihdr_size);
+  writeBig32Mem(ihdr_data, 13); // chunk contents size
+  memcpy(ihdr_data + 4, chunk_IHDR, 4);
+  writeBig32Mem(ihdr_data + 8, w);
+  writeBig32Mem(ihdr_data + 12, abs(h));
+  ihdr_data[16] = 1;
+  int crc = mz_crc32(MZ_CRC32_INIT, ihdr_data + 4, ihdr_contents_size + 4);
+  writeBig32Mem(ihdr_data + ihdr_size - 4, crc);
+
+  // idat
+  unsigned char *idat_data = ihdr_data + ihdr_size;
+  writeBig32Mem(idat_data, compressed_data_length);
+  memcpy(idat_data + 4, chunk_IDAT, 4);
+  memcpy(idat_data + 8, compressed_data, compressed_data_length);
+  crc = mz_crc32(MZ_CRC32_INIT, idat_data + 4, compressed_data_length + 4);
+  writeBig32Mem(idat_data + idat_size - 4, crc);
+  free(compressed_data);
+
+  // iend
+  memcpy(final_data + png_signature_length + ihdr_size + idat_size,
+         full_chunk_IEND, full_chunk_IEND_length);
+
+  *size = final_size;
+  return final_data;
+}
+
 int onebit_write_file_png1(const char *filename, int w, int h,
                            const unsigned char *data) {
   FILE *fp = fopen(filename, "wb");
-
-  writeN(fp, png_signature, 8);
+  if (fp == nullptr)
+    return 1;
+  writeN(fp, png_signature, png_signature_length);
   // ihdr
   writeBig32(fp, 13);
   unsigned char ihdr[17];
@@ -404,7 +547,7 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   writeBig32(fp, idat_crc);
 
   // iend
-  writeN(fp, full_chunk_IEND, full_chunk_IEND_len);
+  writeN(fp, full_chunk_IEND, full_chunk_IEND_length);
 
 #if defined(DEBUG_IDAT)
   FILE *rawdata = fopen("rawdata.zs", "wb");
@@ -416,18 +559,105 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   return 1;
 }
 
-unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
-  FILE *fp = fopen(filename, "rb");
-  unsigned char signature[8] = {0};
+unsigned char *onebit_read_mem_png1(unsigned char *data_mem, int data_length,
+                                    int *w, int *h, int *stride) {
+  int width = 0;
+  int height = 0;
+  unsigned char *ptr = data_mem;
+  if (!match_known(ptr, png_signature, png_signature_length)) {
+    return nullptr;
+  }
+  ptr += png_signature_length;
+  // read chunks
+  bool reading_chunks = true;
+  int compressed_data_size = 0;
   unsigned char *data = nullptr;
+  unsigned char *compressed_data = nullptr;
+  int compressed_data_pos = 0;
+
+  do {
+    int chunk_length = readMemBig32(ptr);
+    ptr += 4;
+    unsigned char *save_ptr = ptr;
+    if (match_known(ptr, chunk_IHDR, 4)) {
+      ptr += 4;
+      width = readMemBig32(ptr);
+      ptr += 4;
+      height = readMemBig32(ptr);
+      ptr += 4; // we will invert later
+
+      int bits_per_pixel = *ptr++; // 1
+      int color_type = *ptr++;     // 0 grayscale
+      int compression = *ptr++;
+      int filter_method = *ptr++;
+      int interlacing = *ptr++;
+    } else if (match_known(ptr, chunk_IDAT, 4)) {
+      ptr += 4;
+      compressed_data_size += chunk_length;
+      if (compressed_data == nullptr) {
+        // TODO check if miniz allows to decode as we read instead of reading
+        // the whole compressed contents
+        compressed_data = (unsigned char *)malloc(compressed_data_size);
+      } else {
+        compressed_data =
+            (unsigned char *)realloc(compressed_data, compressed_data_size);
+      }
+      memcpy(compressed_data + compressed_data_pos, ptr, chunk_length);
+      compressed_data_pos += chunk_length;
+    } else if (match_known(ptr, chunk_IEND, 4)) {
+      ptr += 4;
+      reading_chunks = false;
+    }
+    ptr = save_ptr + chunk_length + 4;
+    unsigned int crc = readMemBig32(ptr);
+    ptr += 4;
+  } while (reading_chunks);
+  int tmp_stride = onebit_bmp_stride(width);
+  *stride = tmp_stride;
+  *w = width;
+  *h = height;
+  unsigned long srclen = compressed_data_size;
+  unsigned long dstlen = (*stride + 1) * height;
+  // these two allocations can be reduced to the largest one,
+  // the returned data would have height "wasted" bytes ate the end
+  // second pass would move data to correct location "in place"
+  unsigned char *tmp_data = (unsigned char *)malloc(srclen);
+  int status = uncompress2(tmp_data, &dstlen, compressed_data, &srclen);
+  free(compressed_data);
+  data = (unsigned char *)malloc(tmp_stride * height);
+  // invert
+  for (int y = 0; y < height; ++y) {
+    memcpy(data + (height - y - 1) * tmp_stride,
+           tmp_data + (y * (tmp_stride + 1)) + 1, tmp_stride);
+  }
+  free(tmp_data);
+#if defined(DEBUG_IDAT)
+  onebit_write_file_bmp1("pngdecoded.bmp", width, height, data);
+#endif
+
+  return data;
+}
+
+unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
+
+  unsigned char *data = nullptr;
+  FILE *fp = fopen(filename, "rb");
+  if (fp == nullptr) {
+    *w = 0;
+    *h = 0;
+    return nullptr;
+  }
+  unsigned char signature[png_signature_length] = {0};
+
   unsigned char *compressed_data = nullptr;
   int compressed_data_pos = 0;
   int compressed_data_size = 0;
   int width = 0;
   int height = 0;
   int stride = 0;
-  readN(fp, signature, png_signature_length);
-  if (!match_known(signature, png_signature, png_signature_length)) {
+  int num_read = readN(fp, signature, png_signature_length);
+  if ((num_read < png_signature_length) ||
+      !match_known(signature, png_signature, png_signature_length)) {
     return data;
   }
   // read chunks
@@ -474,7 +704,7 @@ unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
   // these two allocations can be reduced to the largest one,
   // the returned data would have height "wasted" bytes ate the end
   // second pass would move data to correct location "in place"
-  unsigned char *tmp_data = (unsigned char *)malloc(srclen);
+  unsigned char *tmp_data = (unsigned char *)malloc(dstlen);
   int status = uncompress2(tmp_data, &dstlen, compressed_data, &srclen);
   free(compressed_data);
   data = (unsigned char *)malloc(stride * height);
@@ -490,15 +720,57 @@ unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
   return data;
 }
 
+// TODO: check on TRML device is 0 is black or white
+unsigned char black[4] = {0x00, 0x00, 0x00, 0x00};
+unsigned char white[4] = {0xff, 0xff, 0xff, 0x00};
+
+unsigned char *onebit_write_mem_bmp1(int w, int h, const unsigned char *data,
+                                     int *size) {
+  *size = 0;
+  int ncolors = 2;
+  unsigned int stride = onebit_bmp_stride(w);
+  unsigned int absolute_height = abs(h);
+  bool is_top_down = h < 0;
+  int header_size = 54;
+  int color_size = ncolors * 4;
+  int offset = header_size + color_size;
+  int data_size = stride * absolute_height;
+  int save_size = header_size + color_size + data_size;
+  unsigned char *dataout = (unsigned char *)malloc(save_size);
+  memset(dataout, 0, header_size);
+  memcpy(dataout, bmp_signature, bmp_signature_length);
+  little32(dataout + 2, save_size);
+  little32(dataout + 10, offset); // offset
+
+  // bih8
+  little32(dataout + 14, 40);
+  little32(dataout + 18, w);
+  little32(dataout + 22, h);
+  dataout[26] = 1;
+  dataout[28] = 1; // bits per pixel
+
+  dataout[46] = 2;
+  dataout[50] = 2;
+  memcpy(dataout + header_size, black, 4);
+  memcpy(dataout + header_size + 4, white, 4);
+
+  memcpy(dataout + offset, data, stride * absolute_height);
+  *size = save_size;
+  return dataout;
+}
+
 int onebit_write_file_bmp1(const char *filename, int w, int h,
                            const unsigned char *data) {
   FILE *fp = fopen(filename, "wb");
+  if (fp == nullptr) {
+    return 1;
+  }
+
   int ncolors = 2;
   int stride = onebit_bmp_stride(w);
   unsigned int absolute_height = abs(h);
   bool is_top_down = h < 0;
-  write1(fp, 'B');
-  write1(fp, 'M');
+  writeN(fp, bmp_signature, bmp_signature_length);
   writeLittle32(fp, 54 + ncolors * 4 + stride * h); // filesize
   write0_16(fp);
   write0_16(fp);
@@ -516,14 +788,29 @@ int onebit_write_file_bmp1(const char *filename, int w, int h,
   writeLittle32(fp, 2); //
   writeLittle32(fp, 2); //
 
-  // TODO: check on TRML device is 0 is black or white
-  unsigned char black[4] = {0x00, 0x00, 0x00, 0x00};
-  unsigned char white[4] = {0xff, 0xff, 0xff, 0x00};
-
   writeN(fp, black, 4);
   writeN(fp, white, 4);
   writeN(fp, data, stride * abs(h));
   fclose(fp);
   return 1;
+}
+
+unsigned char *onebit_read_file(const char *filename, int *w, int *h) {
+  *w = 0;
+  *h = 0;
+  unsigned char *data;
+  FILE *fp = fopen(filename, "rb");
+  if (fp == nullptr)
+    return data;
+  // try to read 8 bytes
+  const int read_asked_size = png_signature_length;
+  unsigned char read_data[read_asked_size];
+  int read = fread(read_data, 1,read_asked_size, fp);
+  if (match_bmp(read_data, read))
+    data = onebit_read_file_bmp1(filename, w, h);
+  else if (match_png(read_data, read))
+    data = onebit_read_file_png1(filename, w, h);
+  fclose(fp);
+  return data;
 }
 #endif
