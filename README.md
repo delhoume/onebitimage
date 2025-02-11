@@ -1,5 +1,9 @@
 This repo hosts a simple and not definitive single header C library for handling
-1 bit images in the PNG  format and in the Windows BMP format (as BitmapinfoHeaderv1)_
+1 bit images in PNG and BMP format.
+
+reads/writes from/to file/memory\
+
+simple
 
 Usage:
 ```
@@ -9,15 +13,26 @@ Usage:
 
 APIs:
 ```
-int onebit_write_file_bmp1(const char *filename, int w, int h, unsigned char *data)
-int onebit_write_file_png1(const char *filename, int w, int h, unsigned char *data)
-unsigned char* onebit_read_file_bmp1(const char *filename, int* w, int* h, unsigned char *data)
-unsigned char* onebit_read_file_png1(const char *filename, int* w, int* h, unsigned char *data)
+unsigned char *onebit_read_mem_bmp1(unsigned char *data, int data_length, int *w, int *h, int *stride);
+unsigned char *onebit_read_mem_png1(unsigned char *data, int data_length, int *w, int *h, int *stride);
+unsigned char *onebit_write_mem_bmp1(int w, int h, const unsigned char *data, int *size);
+unsigned char *onebit_write_mem_png1(int w, int h, const unsigned char *data, int *size);
+
+unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h);
+unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h);
+int onebit_write_file_bmp1(const char *filename, int w, int h, const unsigned char *data);
+int onebit_write_file_png1(const char *filename, int w, int h, const unsigned char *data);
+
+unsigned char *onebit_read_file(const char *filename, int *w, int *h);
+
 int onebit_bmp_stride(int width)
-little and big endian file reading / writing (from/to memory will arrive soon)
+
+
 ```
 
-internal data format is Windows BMP 1 bit per pixel:= height rows of *stride* bytes
+internal data format is Windows BMP 1 bit per pixel:
+
++ = height rows of *stride* bytes
 
 + stride = width / 8 padded to 4 bytes ((width + 31) & ~31) >> 3)
 
@@ -57,4 +72,4 @@ Of particular interest might be:
 ```  
   
   Development is done on a mac m1 but code should be portable.
-  onebit is freeware but mdeflate iniz has its own license
+  onebit is freeware but miniz has its own license

@@ -12,5 +12,14 @@ gen1bit.o: gen1bit.cpp onebit.h
 miniz.o: miniz-3.0.2/miniz.c
 	gcc -I. -Iminiz-3.0.2 -g -c miniz-3.0.2/miniz.c
 
+testit: gen1bit
+	./gen1bit testimages/waveshare.bmp	
+	./gen1bit testimages/waveshare.bmp
+
+	./gen1bit testimages/indigo.bmp
+	./gen1bit testimages/indigo.png	
+
+	./gen1bit testimages/space_800_480.bmp
+
 clean:
-	rm -rf *.o gen1bit
+	rm -rf generated/*.bmp generated/*.png *.o gen1bit
