@@ -1,9 +1,7 @@
 This repo hosts a simple and not definitive single header C library for handling
 1 bit images in PNG and BMP format.
 
-reads/writes from/to file/memory\
-
-simple
+reads/writes from/to file/memory
 
 Usage:
 ```
@@ -32,7 +30,7 @@ int onebit_bmp_stride(int width)
 
 internal data format is Windows BMP 1 bit per pixel:
 
-+ = height rows of *stride* bytes
++ height rows of *stride* bytes
 
 + stride = width / 8 padded to 4 bytes ((width + 31) & ~31) >> 3)
 
@@ -40,7 +38,7 @@ internal data format is Windows BMP 1 bit per pixel:
 
 Of particular interest might be:
 - handling of BMP/PNG specifics
-  - PNG is big endian
+  - PNG is big-endian
   - BMP is little-endian
   
 - handling of BMP specifics
@@ -49,7 +47,7 @@ Of particular interest might be:
  
 - handling of PNG specifics
    - simple generation of only 3 chunks : IHDR IDAT IEND
-  - deflate compression
+   - deflate compression
      - depends on external deflate implementation
          - miniz (default)
          - puff, zlb (optional)
@@ -73,3 +71,18 @@ Of particular interest might be:
   
   Development is done on a mac m1 but code should be portable.
   onebit is freeware but miniz has its own license
+
+There are a number of formats dedicated or able to describe 1 bit images:
+- xbm and xpm, mostly a C compilable representation of the 1 bit data
+- pbm (p1 ascii and p4 binary)
+- jbig / jbig2, usually embedded in bi-level PDFs, but can be stand-alone
+- ccitt g3 or g4, usually embedded in bi-level TIFFs
+- gif, in a standard 2 color palette. allows animation
+- tiff with various compressions
+
+
+- TODO  leverage/integrate STB read/write to avoid rewriting low-level functions, and be more portable.
+   - no internal doc
+   - lots of #ifdef and obscure code
+   - BUT ... STB handles file/memory sources, endianness, portability macros , row-swapping, deflate, etc...
+   - 
