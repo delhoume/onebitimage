@@ -261,6 +261,9 @@ unsigned char read1(FILE *fp) { return fgetc(fp); }
 
 int onebit_bmp_stride(int width) { return ((width + 31) & ~31) >> 3; }
 
+int onebit_png_stride(int width) { return (width + 7) >> 3; }
+
+
 #if 0
 //  BMP V1 
 struct BitmapInfoHeaderV1 {
@@ -319,6 +322,7 @@ unsigned char *onebit_read_mem_bmp1(unsigned char *data, int data_length,
   int32_t width = readMemLittle32(ptr);
   ptr += 4;
   int32_t height = readMemLittle32(ptr);
+
   ptr += 4;
   uint16_t color_planes = readMemLittle16(ptr);
   ptr += 2;
@@ -357,6 +361,7 @@ unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h) {
     *h = 0;
     return data;
   }
+  skip4(fp); // filesize
   skip2(fp);
   skip2(fp); // reserved
   uint32_t offset = readLittle32(fp);
@@ -421,18 +426,18 @@ unsigned char *onebit_write_mem_png1(int w, int h, const unsigned char *data,
       (unsigned char *)malloc(png_signature_length + ihdr_size);
 
   // first compress to get final size
-  int stride = onebit_bmp_stride(w);
-
+  int bmpstride = onebit_bmp_stride(w);
+  int pngstride = onebit_png_stride(w);
   // FILTER adds  byte at the begining !!!
-  mz_ulong data_len = (stride + 1) * h;
+  mz_ulong data_len = (pngstride + 1) * h;
   unsigned char *newdata = (unsigned char *)malloc(data_len);
   // invert a the same time
 
   for (int y = 0; y < abs(h); y++) {
-    newdata[y * (stride + 1)] = 0;
-    memcpy(newdata + y * (stride + 1) + 1,
-           h <= 0 ? data + y * stride : data + (abs(h) - y - 1) * stride,
-           stride);
+    newdata[y * (pngstride + 1)] = 0;
+    memcpy(newdata + y * (pngstride + 1) + 1,
+           h <= 0 ? data + y * bmpstride : data + (abs(h) - y - 1) * bmpstride,
+           pngstride);
   }
 
   mz_ulong compressed_data_length = mz_compressBound(data_len);
@@ -513,18 +518,18 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   writeBig32(fp, ihdr_crc);
 
   // idat
-  int stride = onebit_bmp_stride(w);
-
+  int bmpstride = onebit_bmp_stride(w);
+int pngstride = onebit_png_stride(w);
   // FILTER adds  byte at the begining !!!
-  mz_ulong data_len = (stride + 1) * h;
+  mz_ulong data_len = (pngstride + 1) * h;
   unsigned char *newdata = (unsigned char *)malloc(data_len);
   // invert a the same time
 
   for (int y = 0; y < abs(h); y++) {
-    newdata[y * (stride + 1)] = 0;
-    memcpy(newdata + y * (stride + 1) + 1,
-           h <= 0 ? data + y * stride : data + (abs(h) - y - 1) * stride,
-           stride);
+    newdata[y * (pngstride + 1)] = 0;
+    memcpy(newdata + y * (pngstride + 1) + 1,
+           h <= 0 ? data + y * bmpstride : data + (abs(h) - y - 1) * bmpstride,
+           pngstride);
   }
 
   mz_ulong compressed_data_len = mz_compressBound(data_len);
@@ -616,21 +621,28 @@ unsigned char *onebit_read_mem_png1(unsigned char *data_mem, int data_length,
   *stride = tmp_stride;
   *w = width;
   *h = height;
+  int  pngstride = onebit_png_stride(width);
   unsigned long srclen = compressed_data_size;
-  unsigned long dstlen = (*stride + 1) * height;
-  // these two allocations can be reduced to the largest one,
-  // the returned data would have height "wasted" bytes ate the end
-  // second pass would move data to correct location "in place"
+  unsigned long dstlen = (pngstride + 1) * height;
+  // we allocate for final data. the real size + one columnn for the filter
+  // to prevent doing two allocations and copying from decompressed to final size
+  // this wastes some memory. uncompressing to final data might be possible with a streaming
+  // API for deflate, but we currently retrieve the full uncompressed data...
+  // we have to layout the data "in-place", 
   unsigned char *tmp_data = (unsigned char *)malloc(srclen);
   int status = uncompress2(tmp_data, &dstlen, compressed_data, &srclen);
   free(compressed_data);
+#if 1
   data = (unsigned char *)malloc(tmp_stride * height);
   // invert
   for (int y = 0; y < height; ++y) {
     memcpy(data + (height - y - 1) * tmp_stride,
-           tmp_data + (y * (tmp_stride + 1)) + 1, tmp_stride);
+           tmp_data + (y * (pngstride + 1)) + 1, pngstride);
   }
   free(tmp_data);
+#else
+// TODO
+#endif
 #if defined(DEBUG_IDAT)
   onebit_write_file_bmp1("pngdecoded.bmp", width, height, data);
 #endif
@@ -700,7 +712,8 @@ unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
   } while (reading_chunks);
   fclose(fp);
   unsigned long srclen = compressed_data_size;
-  unsigned long dstlen = (stride + 1) * height;
+  int pngstride = onebit_png_stride(width);
+  unsigned long dstlen = (pngstride + 1) * height;
   // these two allocations can be reduced to the largest one,
   // the returned data would have height "wasted" bytes ate the end
   // second pass would move data to correct location "in place"
@@ -711,7 +724,7 @@ unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h) {
   // invert
   for (int y = 0; y < height; ++y) {
     memcpy(data + ((height - y - 1) * stride),
-           tmp_data + (y * (stride + 1)) + 1, stride);
+           tmp_data + (y * (pngstride + 1)) + 1, pngstride);
   }
   free(tmp_data);
 #if defined(DEBUG_IDAT)
