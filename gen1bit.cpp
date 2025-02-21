@@ -15,7 +15,7 @@ bool ends_with(const std::string &s, const std::string &suffix) {
 // clang -g  -I. -Iminiz-3.0.2 gen1bit.cpp miniz-3.0.2/miniz.c -o gen1bit
 // -lstdc++
 
-unsigned char *readFileContents(const char *filename, int *size) {
+uint8_t *readFileContents(const char *filename, int *size) {
   FILE *ff = fopen(filename, "rb");
   if (ff == nullptr) {
     size = 0;
@@ -24,7 +24,7 @@ unsigned char *readFileContents(const char *filename, int *size) {
   fseek(ff, 0, SEEK_END);
   int ffsize = ftell(ff);
   fseek(ff, 0, SEEK_SET);
-  unsigned char *filedata = (unsigned char *)malloc(ffsize);
+  uint8_t *filedata = (uint8_t *)malloc(ffsize);
   fread(filedata, 1, ffsize, ff);
   fclose(ff);
   *size = ffsize;
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
   if (argc < 2)
     return 0;
 
-  unsigned char *data = onebit_read_file(argv[1], &w, &h);
+  uint8_t *data = onebit_read_file(argv[1], &w, &h);
   if (data == nullptr)
     return 0;
   onebit_write_file_png1("generated/generated.png", w, h, data);
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
   std::string bmp_ext("bmp");
  w = 0; h = 0; stride = 0;
   int size = 0;
-  unsigned char *filedata = readFileContents(fname.c_str(), &size);
+  uint8_t *filedata = readFileContents(fname.c_str(), &size);
 
   if (ends_with(fname, bmp_ext)) {
     data = onebit_read_mem_bmp1(filedata, size, &w, &h, &stride);
@@ -64,11 +64,11 @@ int main(int argc, char *argv[]) {
       onebit_write_file_bmp1("generated/generated_read_mem_bmp.bmp", w, h,
                              data);
       size = 0;
-      unsigned char *mem_bmp1 = onebit_write_mem_bmp1(w, h, data, &size);
-      writeToFile("generated/generated_write_mem_bmpopen.bmp", mem_bmp1, size);
+      uint8_t *mem_bmp1 = onebit_write_mem_bmp1(w, h, data, &size);
+      writeToFile("generated/generated_write_mem_bmp.bmp", mem_bmp1, size);
       free(mem_bmp1);
       size = 0;
-      unsigned char *mem_png1 = onebit_write_mem_png1(w, h, data, &size);
+      uint8_t *mem_png1 = onebit_write_mem_png1(w, h, data, &size);
       writeToFile("generated/generated_write_mem_bmp.png", mem_png1, size);
       free(mem_png1);
     }
@@ -81,10 +81,10 @@ int main(int argc, char *argv[]) {
       onebit_write_file_bmp1("generated/generated_read_mem_png.bmp", w, h,
                              data);
       size = 0;
-      unsigned char *mem_bmp1 = onebit_write_mem_bmp1(w, h, data, &size);
+      uint8_t *mem_bmp1 = onebit_write_mem_bmp1(w, h, data, &size);
       writeToFile("generated/generated_write_mem_png.bmp", mem_bmp1, size);
       free(mem_bmp1);
-      unsigned char *mem_png1 = onebit_write_mem_png1(w, h, data, &size);
+      uint8_t *mem_png1 = onebit_write_mem_png1(w, h, data, &size);
       writeToFile("generated/generated_write_mem_png.png", mem_png1, size);
       free(mem_png1);
     }

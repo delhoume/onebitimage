@@ -1,3 +1,13 @@
 /generated
 *.o
 gen1bit
+miniz-3.0.2/.DS_Store
+miniz-3.0.2/sample.bmp
+miniz-3.0.2/sample.png
+minizunc
+minizunc.dSYM/Contents/Info.plist
+minizunc.dSYM/Contents/Resources/DWARF/minizunc
+minizunc.dSYM/Contents/Resources/Relocations/aarch64/minizunc.yml
+.vscode/sample.bmp
+.DS_Store
+.vscode/launch.json
