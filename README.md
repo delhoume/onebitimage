@@ -11,17 +11,17 @@ Usage:
 
 APIs:
 ```
-unsigned char *onebit_read_mem_bmp1(unsigned char *data, int data_length, int *w, int *h, int *stride);
-unsigned char *onebit_read_mem_png1(unsigned char *data, int data_length, int *w, int *h, int *stride);
-unsigned char *onebit_write_mem_bmp1(int w, int h, const unsigned char *data, int *size);
-unsigned char *onebit_write_mem_png1(int w, int h, const unsigned char *data, int *size);
+uint8_t *onebit_read_mem_bmp1(uint8_t *data, int data_length, int *w, int *h, int *stride);
+uint8_t *onebit_read_mem_png1(uint8_t *data, int data_length, int *w, int *h, int *stride);
+uint8_t *onebit_write_mem_bmp1(int w, int h, const uint8_t *data, int *size);
+uint8_t *onebit_write_mem_png1(int w, int h, const uint8_t *data, int *size);
 
-unsigned char *onebit_read_file_bmp1(const char *filename, int *w, int *h);
-unsigned char *onebit_read_file_png1(const char *filename, int *w, int *h);
-int onebit_write_file_bmp1(const char *filename, int w, int h, const unsigned char *data);
-int onebit_write_file_png1(const char *filename, int w, int h, const unsigned char *data);
+uint8_t *onebit_read_file_bmp1(const char *filename, int *w, int *h);
+uint8_t *onebit_read_file_png1(const char *filename, int *w, int *h);
+int onebit_write_file_bmp1(const char *filename, int w, int h, const uint8_t *data);
+int onebit_write_file_png1(const char *filename, int w, int h, const uint8_t *data);
 
-unsigned char *onebit_read_file(const char *filename, int *w, int *h);
+uint8_t *onebit_read_file(const char *filename, int *w, int *h);
 
 int onebit_bmp_stride(int width)
 
