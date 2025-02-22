@@ -5,7 +5,9 @@
 
 #include <cstdio>
 #include <string>
-
+#include <iostream>
+#include <chrono>
+using namespace std::chrono;
 using namespace std;
 
 bool ends_with(const std::string &s, const std::string &suffix) {
@@ -37,10 +39,12 @@ int main(int argc, char *argv[]) {
   int stride = 0;
   if (argc < 2)
     return 0;
-
   uint8_t *data = onebit_read_file(argv[1], &w, &h);
-  if (data == nullptr)
+
+if (data == nullptr)
     return 0;
+
+
   onebit_write_file_png1("generated/generated.png", w, h, data);
   onebit_write_file_bmp1("generated/generated.bmp", w, h, data);
 

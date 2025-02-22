@@ -6,12 +6,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 
 extern "C" {
 #include "miniz.h"
 }
-
+#include <chrono>
+using namespace std::chrono;
+#include <iostream>
 #include <stdlib.h>
+using namespace std;
 
 // clang -g -I. -Iminiz-3.0.2 onebit_image_demo.cpp miniz-3.0.2/miniz.c puff.c
 // -o onebit_image_dem
@@ -34,17 +38,14 @@ const int bmp_signature_length = 2;
 uint8_t bmp_signature[bmp_signature_length] = {'B', 'M'};
 
 const int png_signature_length = 8;
-uint8_t png_signature[png_signature_length] = {137, 80, 78, 71,
-                                                     13,  10, 26, 10};
+uint8_t png_signature[png_signature_length] = {137, 80, 78, 71, 13, 10, 26, 10};
 
-uint8_t *onebit_read_mem_bmp1(uint8_t *data, int data_length,
-                                    int *w, int *h, int *stride);
-uint8_t *onebit_read_mem_png1(uint8_t *data, int data_length,
-                                    int *w, int *h, int *stride);
-uint8_t *onebit_write_mem_bmp1(int w, int h, const uint8_t *data,
-                                     int *size);
-uint8_t *onebit_write_mem_png1(int w, int h, const uint8_t *data,
-                                     int *size);
+uint8_t *onebit_read_mem_bmp1(uint8_t *data, int data_length, int *w, int *h,
+                              int *stride);
+uint8_t *onebit_read_mem_png1(uint8_t *data, int data_length, int *w, int *h,
+                              int *stride);
+uint8_t *onebit_write_mem_bmp1(int w, int h, const uint8_t *data, int *size);
+uint8_t *onebit_write_mem_png1(int w, int h, const uint8_t *data, int *size);
 
 uint8_t *onebit_read_file_bmp1(const char *filename, int *w, int *h);
 uint8_t *onebit_read_file_png1(const char *filename, int *w, int *h);
@@ -220,17 +221,13 @@ uint32_t readBig32(FILE *fp) {
          ((uint32_t)fgetc(fp) << 8) | fgetc(fp);
 }
 
-void writeN(FILE *fp, const uint8_t *data, int n) {
-  fwrite(data, 1, n, fp);
-}
+void writeN(FILE *fp, const uint8_t *data, int n) { fwrite(data, 1, n, fp); }
 void writeNMem(uint8_t *dataout, const uint8_t *datain, int n) {
   memcpy(dataout, datain, n);
 }
 
 void write1(FILE *fp, uint8_t value) { fputc(value, fp); }
-void write1Mem(uint8_t *dataout, uint8_t value) {
-  dataout[0] = value;
-}
+void write1Mem(uint8_t *dataout, uint8_t value) { dataout[0] = value; }
 
 void skipN(FILE *fp, int n) {
   for (int i = 0; i < n; ++n)
@@ -251,9 +248,7 @@ inline void skip4(FILE *fp) {
   fgetc(fp);
 }
 
-int readN(FILE *fp, uint8_t *data, int n) {
-  return fread(data, 1, n, fp);
-}
+int readN(FILE *fp, uint8_t *data, int n) { return fread(data, 1, n, fp); }
 
 uint8_t read1(FILE *fp) { return fgetc(fp); }
 
@@ -300,8 +295,12 @@ typedef struct BGRA {
 } BGRA;
 
 // TODO: check data size
-uint8_t *onebit_read_mem_bmp1(uint8_t *data, int data_length,
-                                    int *w, int *h, int *stride) {
+uint8_t *onebit_read_mem_bmp1(uint8_t *data, int data_length, int *w, int *h,
+                              int *stride) {
+                                #if defined(BENCH)
+ auto start = high_resolution_clock::now();
+ #endif
+
   if (data_length < 62)
     return data;
   uint8_t *ptr = data;
@@ -337,6 +336,11 @@ uint8_t *onebit_read_mem_bmp1(uint8_t *data, int data_length,
 
   uint8_t *dataout = (uint8_t *)malloc(abs(height) * (*stride));
   memcpy(dataout, ptr, *stride * abs(height));
+  #if defined(BENCH)
+    auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<microseconds>(stop - start);
+  cout << "onebit_read_mem_bmp1 microseconds:  " << duration.count() << endl;
+  #endif
   return dataout;
 }
 
@@ -413,14 +417,12 @@ void writeToFile(const char *filename, uint8_t *data, int size) {
   fclose(fp);
 }
 
-uint8_t *onebit_write_mem_png1(int w, int h, const uint8_t *data,
-                                     int *size) {
+uint8_t *onebit_write_mem_png1(int w, int h, const uint8_t *data, int *size) {
   int ihdr_contents_size = 13;
   int chunk_overhead = 12; // count 4 chunktypr 4 crc 4
   int ihdr_size = ihdr_contents_size +
                   chunk_overhead; // size + chunk name * chunkdata + crc = 25
-  uint8_t *signature_ihdr =
-      (uint8_t *)malloc(png_signature_length + ihdr_size);
+  uint8_t *signature_ihdr = (uint8_t *)malloc(png_signature_length + ihdr_size);
 
   // first compress to get final size
   int bmpstride = onebit_bmp_stride(w);
@@ -561,8 +563,12 @@ int onebit_write_file_png1(const char *filename, int w, int h,
   return 1;
 }
 
-uint8_t *onebit_read_mem_png1(uint8_t *data_mem, int data_length,
-                                    int *w, int *h, int *stride) {
+uint8_t *onebit_read_mem_png1(uint8_t *data_mem, int data_length, int *w,
+                              int *h, int *stride) {
+
+                                #if defined(BENCH)
+                                 auto start = high_resolution_clock::now();
+                                 #endif
   int width = 0;
   int height = 0;
   uint8_t *ptr = data_mem;
@@ -576,7 +582,7 @@ uint8_t *onebit_read_mem_png1(uint8_t *data_mem, int data_length,
   uint8_t *data = nullptr;
   uint8_t *compressed_data = nullptr;
   int compressed_data_pos = 0;
-
+  bool single_idat = true;
   do {
     int chunk_length = readMemBig32(ptr);
     ptr += 4;
@@ -594,17 +600,24 @@ uint8_t *onebit_read_mem_png1(uint8_t *data_mem, int data_length,
       int filter_method = *ptr++;
       int interlacing = *ptr++;
     } else if (match_known(ptr, chunk_IDAT, 4)) {
+      // check if there is a singlwe idat chunk to optimize decompression
+      single_idat = (compressed_data == nullptr) &&
+                    match_known(save_ptr + chunk_length + 4, chunk_IDAT, 4);
       ptr += 4;
       compressed_data_size += chunk_length;
-      if (compressed_data == nullptr) {
-        // TODO check if miniz allows to decode as we read instead of reading
-        // the whole compressed contents
-        compressed_data = (uint8_t *)malloc(compressed_data_size);
+      if (single_idat == false) {
+        if (compressed_data == nullptr) {
+          // TODO check if miniz allows to decode as we read instead of reading
+          // the whole compressed contents
+          compressed_data = (uint8_t *)malloc(compressed_data_size);
+        } else {
+          compressed_data =
+              (uint8_t *)realloc(compressed_data, compressed_data_size);
+        }
+        memcpy(compressed_data + compressed_data_pos, ptr, chunk_length);
       } else {
-        compressed_data =
-            (uint8_t *)realloc(compressed_data, compressed_data_size);
+        compressed_data = ptr;
       }
-      memcpy(compressed_data + compressed_data_pos, ptr, chunk_length);
       compressed_data_pos += chunk_length;
     } else if (match_known(ptr, chunk_IEND, 4)) {
       ptr += 4;
@@ -621,15 +634,13 @@ uint8_t *onebit_read_mem_png1(uint8_t *data_mem, int data_length,
   int pngstride = onebit_png_stride(width);
   unsigned long srclen = compressed_data_size;
   unsigned long dstlen = (pngstride + 1) * height;
-  // we allocate for final data. the real size + one columnn for the filter
-  // to prevent doing two allocations and copying from decompressed to final
-  // size this wastes some memory. uncompressing to final data might be possible
-  // with a streaming API for deflate, but we currently retrieve the full
-  // uncompressed data... we have to layout the data "in-place",
-  uint8_t *tmp_data = (uint8_t *)malloc(srclen);
+
+  // when we have only 1 idat chunk we can uncompress from memory
+  uint8_t *tmp_data = (uint8_t *)malloc(dstlen);
   int status = uncompress2(tmp_data, &dstlen, compressed_data, &srclen);
-  free(compressed_data);
-#if 1
+  if (single_idat == false)
+    free(compressed_data);
+
   data = (uint8_t *)malloc(tmp_stride * height);
   // invert
   for (int y = 0; y < height; ++y) {
@@ -637,13 +648,11 @@ uint8_t *onebit_read_mem_png1(uint8_t *data_mem, int data_length,
            tmp_data + (y * (pngstride + 1)) + 1, pngstride);
   }
   free(tmp_data);
-#else
-// TODO
+  #if defined(BENCH)
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<microseconds>(stop - start);
+  cout << "onebit_read_mem_png1 microseconds:  " << duration.count() << endl;
 #endif
-#if defined(DEBUG_IDAT)
-  onebit_write_file_bmp1("pngdecoded.bmp", width, height, data);
-#endif
-
   return data;
 }
 
@@ -734,8 +743,7 @@ uint8_t *onebit_read_file_png1(const char *filename, int *w, int *h) {
 uint8_t black[4] = {0x00, 0x00, 0x00, 0x00};
 uint8_t white[4] = {0xff, 0xff, 0xff, 0x00};
 
-uint8_t *onebit_write_mem_bmp1(int w, int h, const uint8_t *data,
-                                     int *size) {
+uint8_t *onebit_write_mem_bmp1(int w, int h, const uint8_t *data, int *size) {
   *size = 0;
   int ncolors = 2;
   unsigned int stride = onebit_bmp_stride(w);
